@@ -27,17 +27,6 @@
         /* Modal Animation */
         .modal { transition: opacity 0.25s ease; }
         body.modal-active { overflow-x: hidden; overflow-y: visible !important; }
-
-        /* Image Loading Skeleton */
-        .skeleton-loader {
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 200% 100%;
-            animation: skeleton-loading 1.5s infinite;
-        }
-        @keyframes skeleton-loading {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 h-screen flex flex-col overflow-hidden">
@@ -55,9 +44,6 @@
                 </div>
             </div>
             <div class="flex gap-2 items-center">
-                <button onclick="openConfig()" class="text-gray-400 hover:text-gray-600 p-2" title="Configurar API Key">
-                    <i class="fas fa-cog"></i>
-                </button>
                 <button onclick="generateShoppingList()" id="shop-btn" class="hidden bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold py-2 px-4 rounded-full shadow flex items-center gap-2 transition">
                     <i class="fas fa-shopping-basket"></i>
                     <span class="hidden sm:inline">Lista</span>
@@ -119,14 +105,14 @@
                     <div class="w-4 h-4 bg-green-500 rounded-full typing-dot"></div>
                 </div>
                 <p class="text-gray-600 font-medium">Consultando al Chef IA...</p>
-                <p class="text-xs text-gray-400 mt-2">Buscando ideas baratas en Maxi Palí</p>
+                <p class="text-xs text-gray-400 mt-2">Buscando ideas económicas y deliciosas</p>
             </div>
 
             <!-- Content Container (To be populated) -->
             <div id="menu-content" class="hidden max-w-3xl mx-auto space-y-6">
                 <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded shadow-sm mb-6">
                     <h3 class="font-bold text-yellow-800"><i class="fas fa-lightbulb"></i> Plan Generado</h3>
-                    <p class="text-sm text-yellow-700 mt-1">Usa el botón <i class="fas fa-camera text-xs"></i> para generar una foto del platillo. Usa <i class="fas fa-volume-up text-xs"></i> para escuchar la receta.</p>
+                    <p class="text-sm text-yellow-700 mt-1">Usa el botón <i class="fas fa-volume-up text-xs"></i> para escuchar la receta paso a paso.</p>
                 </div>
                 <div id="recipes-grid" class="grid gap-6">
                     <!-- Cards will be injected here -->
@@ -157,38 +143,21 @@
         </div>
     </div>
 
-    <!-- Modal for Config (API Key) -->
-    <div id="config-modal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
-        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50" onclick="closeConfig()"></div>
-        <div class="modal-container bg-white w-11/12 md:max-w-md mx-auto rounded shadow-lg z-50">
-            <div class="modal-content py-4 text-left px-6">
-                <div class="flex justify-between items-center pb-3">
-                    <p class="text-xl font-bold text-gray-800">⚙️ Configuración</p>
-                    <div class="cursor-pointer" onclick="closeConfig()"><i class="fas fa-times"></i></div>
-                </div>
-                <p class="text-sm text-gray-600 mb-4">Para usar esta app en GitHub Pages, necesitas tu propia API Key de Google Gemini.</p>
-                <input type="password" id="api-key-input" class="w-full border p-2 rounded mb-4" placeholder="Pega tu API Key aquí (AIza...)">
-                <div class="flex justify-end">
-                    <button onclick="saveConfig()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Guardar</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script>
         // --- Configuration & API ---
-        // Try to get key from local storage (for GitHub Pages users)
-        let userApiKey = localStorage.getItem('gemini_api_key') || "";
         
-        // Environment fallback (for preview environment)
-        const envApiKey = ""; 
+        // 1. Llave del sistema (Funciona aquí en la previsualización)
+        const apiKey = ""; 
+
+        // 2. Tu llave personal (Funciona cuando lo subas a GitHub)
+        const userFallbackKey = "AIzaSyD3bRckLy8ZkeG0oRZQ5_G6tn6fmvMthVg"; 
         
         function getApiKey() {
-            return userApiKey || envApiKey;
+            // Prioriza la llave del sistema si existe, sino usa la tuya
+            return apiKey || userFallbackKey;
         }
 
         const TEXT_MODEL = "gemini-2.5-flash-preview-09-2025";
-        const IMAGE_MODEL = "imagen-4.0-generate-001";
         const TTS_MODEL = "gemini-2.5-flash-preview-tts";
 
         // State
@@ -205,33 +174,6 @@
         const pdfBtn = document.getElementById('pdf-btn');
         const shopBtn = document.getElementById('shop-btn');
         const modal = document.getElementById('shopping-modal');
-        const configModal = document.getElementById('config-modal');
-
-        // --- Config Logic ---
-        function openConfig() {
-            document.getElementById('api-key-input').value = userApiKey;
-            configModal.classList.remove('opacity-0', 'pointer-events-none');
-        }
-        function closeConfig() {
-            configModal.classList.add('opacity-0', 'pointer-events-none');
-        }
-        function saveConfig() {
-            const key = document.getElementById('api-key-input').value.trim();
-            if(key) {
-                localStorage.setItem('gemini_api_key', key);
-                userApiKey = key;
-                alert("API Key guardada. ¡Ya puedes cocinar!");
-                closeConfig();
-            }
-        }
-        
-        // Check on load if we need a key (only if not in preview env)
-        window.onload = () => {
-            if (!envApiKey && !userApiKey) {
-               // Optional: openConfig(); 
-               // We don't auto-open to avoid annoying preview users, but user can click gear icon.
-            }
-        };
 
         // --- Main Logic ---
 
@@ -255,12 +197,6 @@
             const text = userInput.value.trim();
             if (!text) return;
 
-            if (!getApiKey()) {
-                openConfig();
-                alert("Por favor configura tu API Key primero (ícono de engranaje)");
-                return;
-            }
-
             addMessage(text, 'user');
             userInput.value = '';
             userInput.disabled = true;
@@ -274,10 +210,10 @@
             try {
                 const recipes = await fetchRecipesFromGemini(text);
                 renderRecipes(recipes);
-                addMessage("¡Listo! He creado 5 recetas. Ahora puedes generar imágenes 📷 y audios 🔊 para cada una.", 'bot');
+                addMessage("¡Listo! He creado 5 recetas económicas. Puedes escucharlas con el botón de audio. 🎧", 'bot');
             } catch (error) {
                 console.error(error);
-                addMessage("Error: Verifica tu API Key o intenta de nuevo.", 'bot');
+                addMessage("Error conectando con el Chef. Intenta de nuevo.", 'bot');
                 loadingState.classList.add('hidden');
                 emptyState.classList.remove('hidden');
             } finally {
@@ -293,7 +229,7 @@
                 Actúa como un chef experto en cocina costarricense económica.
                 Ingredientes disponibles: "${ingredients}".
                 Genera 5 recetas para la semana (Lunes a Viernes).
-                REGLAS: Sin arroz/frijoles, usar ingredientes baratos (Maxi Palí), fácil preparación.
+                REGLAS: Sin arroz/frijoles, usar ingredientes económicos y accesibles en cualquier lugar, fácil preparación.
                 JSON schema:
                 { "recipes": [ { "day": "Lunes", "title": "Nombre", "description": "Desc", "ingredients": ["a","b"], "steps": ["1","2"], "prep_time": "15 min" } ] }
             `;
@@ -307,48 +243,9 @@
                 })
             });
 
-            if (!response.ok) throw new Error('Text API Error');
+            if (!response.ok) throw new Error('Text API Error: ' + response.status);
             const data = await response.json();
             return JSON.parse(data.candidates[0].content.parts[0].text).recipes;
-        }
-
-        async function generateImage(index) {
-            const recipe = currentRecipes[index];
-            const btn = document.getElementById(`img-btn-${index}`);
-            const container = document.getElementById(`img-container-${index}`);
-            
-            // Update UI
-            btn.disabled = true;
-            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Generando...`;
-            container.classList.remove('hidden'); // Show container (skeleton loader active)
-            
-            // Create Prompt
-            const prompt = `Delicious food photography of ${recipe.title}, ${recipe.description}. Costa Rican cuisine style, home cooked, high quality, 4k, realistic lighting, on a simple plate.`;
-
-            try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${IMAGE_MODEL}:predict?key=${getApiKey()}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        instances: [{ prompt: prompt }],
-                        parameters: { sampleCount: 1 }
-                    })
-                });
-
-                if (!response.ok) throw new Error('Image API Error');
-                const data = await response.json();
-                const base64Image = data.predictions[0].bytesBase64Encoded;
-
-                // Replace skeleton with image
-                container.innerHTML = `<img src="data:image/png;base64,${base64Image}" class="w-full h-full object-cover transition-opacity duration-500">`;
-                btn.innerHTML = `<i class="fas fa-check"></i> Lista`;
-                
-            } catch (error) {
-                console.error(error);
-                container.classList.add('hidden');
-                btn.disabled = false;
-                btn.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Error. Reintentar`;
-            }
         }
 
         async function playRecipeTTS(recipeIndex) {
@@ -374,6 +271,8 @@
                     })
                 });
 
+                if (!response.ok) throw new Error('TTS API Error ' + response.status);
+
                 const data = await response.json();
                 const audioContent = data.candidates[0].content.parts[0].inlineData.data;
                 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -386,6 +285,7 @@
                 btn.innerHTML = `<i class="fas fa-stop"></i>`;
                 audio.play();
             } catch (e) {
+                console.error(e);
                 btn.innerHTML = `<i class="fas fa-times"></i> Error`;
                 setTimeout(() => btn.innerHTML = originalIcon, 2000);
                 isGeneratingAudio = false;
@@ -433,22 +333,16 @@
                 const stepsList = recipe.steps.map(s => `<li>${s}</li>`).join('');
 
                 card.innerHTML = `
-                    <div class="md:w-48 bg-${color}-100 flex flex-col border-r border-gray-100">
-                        <div class="p-4 text-center text-${color}-700">
-                            <span class="text-sm font-bold uppercase tracking-wider">${recipe.day}</span>
-                            <div class="text-xs font-semibold mb-2">${recipe.prep_time}</div>
+                    <div class="md:w-48 bg-${color}-100 flex flex-col border-r border-gray-100 items-center justify-center p-4">
+                        <div class="text-center text-${color}-700">
+                            <span class="text-sm font-bold uppercase tracking-wider block mb-2">${recipe.day}</span>
+                            <div class="text-xs font-semibold mb-3">${recipe.prep_time}</div>
+                            <i class="fas fa-utensils text-3xl opacity-50 mb-3 block"></i>
                             
-                            <div class="flex flex-col gap-2">
-                                <button id="img-btn-${index}" onclick="generateImage(${index})" class="bg-white hover:bg-${color}-50 text-xs px-2 py-1 rounded shadow-sm border border-${color}-200 transition">
-                                    <i class="fas fa-camera"></i> Generar Foto
-                                </button>
-                                <button id="tts-btn-${index}" onclick="playRecipeTTS(${index})" class="bg-white hover:bg-${color}-50 text-xs px-2 py-1 rounded shadow-sm border border-${color}-200 transition">
-                                    <i class="fas fa-volume-up"></i> Escuchar
-                                </button>
-                            </div>
+                            <button id="tts-btn-${index}" onclick="playRecipeTTS(${index})" class="bg-white hover:bg-${color}-50 text-xs px-3 py-2 rounded shadow-sm border border-${color}-200 transition flex items-center gap-2 mx-auto">
+                                <i class="fas fa-volume-up"></i> Escuchar
+                            </button>
                         </div>
-                        <!-- Image Container -->
-                        <div id="img-container-${index}" class="hidden h-32 w-full skeleton-loader relative overflow-hidden border-t border-${color}-200"></div>
                     </div>
 
                     <div class="p-5 flex-1">
