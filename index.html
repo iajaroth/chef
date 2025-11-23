@@ -45,6 +45,19 @@
         .tab-active { color: var(--accent-gold); border-top: 2px solid var(--accent-gold); background-color: rgba(212, 175, 55, 0.05); }
         .tab-inactive { color: #525252; border-top: 2px solid transparent; }
         
+        /* Imagen de receta con overlay */
+        .recipe-img-container {
+            position: relative;
+            overflow: hidden;
+        }
+        .recipe-img-container::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.6) 100%);
+            pointer-events: none;
+        }
+        
         /* Utilidades de texto doradas */
         .text-gold { color: var(--accent-gold); }
         .bg-gold { background-color: var(--accent-gold); }
@@ -95,7 +108,7 @@
                     </div>
                     <div class="chat-bubble bg-[#171717] p-4 rounded-r-xl rounded-bl-xl border border-[#333] text-sm text-gray-300 shadow-lg">
                         <p class="font-medium text-[#D4AF37] mb-2 uppercase tracking-wide text-xs">Bienvenido</p>
-                        <p>Indique sus ingredientes disponibles (ej: <em>papas, huevos, atún</em>). Diseñaré un menú exclusivo y económico para su semana.</p>
+                        <p>Indique sus ingredientes disponibles (ej: <em>papas, huevos, atún</em>). Diseñaré un menú exclusivo, económico y con referencias visuales.</p>
                     </div>
                 </div>
             </div>
@@ -131,16 +144,16 @@
                     <div class="w-2 h-2 bg-[#D4AF37] rounded-full typing-dot"></div>
                     <div class="w-2 h-2 bg-[#D4AF37] rounded-full typing-dot"></div>
                 </div>
-                <p class="text-[#D4AF37] font-medium text-xs uppercase tracking-widest">Diseñando experiencia culinaria...</p>
+                <p class="text-[#D4AF37] font-medium text-xs uppercase tracking-widest">Buscando referencias visuales...</p>
             </div>
 
             <!-- Content Container -->
             <div id="menu-content" class="hidden max-w-3xl mx-auto space-y-6">
                 <div class="bg-[#171717] border-l-2 border-[#D4AF37] p-4 flex items-center gap-4 shadow-md">
-                    <i class="fas fa-check-circle text-[#D4AF37]"></i>
+                    <i class="fas fa-images text-[#D4AF37]"></i>
                     <div>
-                        <h3 class="font-bold text-[#E5E5E5] text-sm uppercase tracking-wide">Propuesta Lista</h3>
-                        <p class="text-xs text-gray-400">Seleccione el audio para guiar su preparación.</p>
+                        <h3 class="font-bold text-[#E5E5E5] text-sm uppercase tracking-wide">Menú con Referencias</h3>
+                        <p class="text-xs text-gray-400">Imágenes ilustrativas de internet según el platillo.</p>
                     </div>
                 </div>
                 <div id="recipes-grid" class="grid gap-6">
@@ -257,7 +270,6 @@
             div.className = `flex items-start gap-3 ${sender === 'user' ? 'flex-row-reverse' : ''}`;
             
             const avatar = document.createElement('div');
-            // Gold avatar for user, Dark for bot
             const avatarClass = sender === 'user' 
                 ? 'bg-[#D4AF37] text-black border border-[#D4AF37]' 
                 : 'bg-transparent border border-[#D4AF37] text-[#D4AF37]';
@@ -266,7 +278,6 @@
             avatar.innerHTML = sender === 'user' ? '<i class="fas fa-user"></i>' : '<i class="fas fa-robot"></i>';
             
             const bubble = document.createElement('div');
-            // Gold bubble for user, Dark card for bot
             const bubbleClass = sender === 'user' 
                 ? 'bg-[#D4AF37] text-black rounded-l-xl rounded-tr-xl shadow-lg font-medium' 
                 : 'bg-[#171717] text-gray-300 rounded-r-xl rounded-bl-xl border border-[#333] shadow-lg';
@@ -298,7 +309,7 @@
             try {
                 const recipes = await fetchRecipesFromGemini(text);
                 renderRecipes(recipes);
-                addMessage("Menú diseñado. Acceda a la pestaña 'Menú' para visualizar su selección.", 'bot');
+                addMessage("Menú diseñado. He incluido referencias visuales para cada plato.", 'bot');
                 
                 if(window.innerWidth < 768) {
                     menuBadge.classList.remove('hidden');
@@ -307,7 +318,7 @@
 
             } catch (error) {
                 console.error(error);
-                addMessage("Hubo una interrupción en el servicio. Por favor, intente nuevamente.", 'bot');
+                addMessage("Hubo una interrupción. Por favor intente nuevamente.", 'bot');
                 loadingState.classList.add('hidden');
                 emptyState.classList.remove('hidden');
             } finally {
@@ -323,7 +334,11 @@
                 Actúa como un chef experto en cocina costarricense económica pero con presentación gourmet.
                 Ingredientes disponibles: "${ingredients}".
                 Genera 5 recetas para la semana (Lunes a Viernes).
-                REGLAS: Sin arroz/frijoles, usar ingredientes económicos, fácil preparación.
+                REGLAS: 
+                1. Sin arroz/frijoles.
+                2. Usa ingredientes económicos.
+                3. Nombres de platos claros y buscables (ej: "Gallo de Papa" en vez de "Delicia de tubérculo").
+                
                 JSON schema:
                 { "recipes": [ { "day": "Lunes", "title": "Nombre", "description": "Desc", "ingredients": ["a","b"], "steps": ["1","2"], "prep_time": "15 min" } ] }
             `;
@@ -428,22 +443,38 @@
 
             recipes.forEach((recipe, index) => {
                 
+                // Construct Reference Image URL (Bing Thumbnail Hack)
+                // Appending "comida Costa Rica" helps improve relevance
+                const query = encodeURIComponent(`${recipe.title} comida receta`);
+                const imageUrl = `https://tse2.mm.bing.net/th?q=${query}&w=500&h=300&c=7&rs=1&p=0`;
+
                 const card = document.createElement('article');
-                // Updated Card Style: Dark background, light border, hover glow
                 card.className = `recipe-card bg-[#171717] rounded-none border border-[#333] overflow-hidden flex flex-col md:flex-row shadow-lg`;
                 
                 const ingList = recipe.ingredients.map(i => `<li class="pl-3 relative text-gray-400 before:content-[''] before:absolute before:left-0 before:top-2 before:w-1 before:h-1 before:bg-[#D4AF37] before:rounded-full">${i}</li>`).join('');
                 
                 card.innerHTML = `
-                    <!-- Left Strip (Date & Audio) -->
-                    <div class="md:w-40 bg-[#121212] flex flex-row md:flex-col items-center justify-between md:justify-center p-4 border-b md:border-b-0 md:border-r border-[#333]">
-                        <div class="flex items-center gap-3 md:flex-col md:gap-2">
-                            <span class="text-xs font-bold uppercase tracking-widest text-[#D4AF37] border border-[#D4AF37] px-2 py-1">${recipe.day}</span>
-                            <span class="text-[10px] text-gray-500 uppercase tracking-wide md:mt-2">${recipe.prep_time}</span>
+                    <!-- Left Strip (Image & Meta) -->
+                    <div class="md:w-56 bg-[#121212] flex flex-col border-b md:border-b-0 md:border-r border-[#333]">
+                        <!-- Image Container -->
+                        <div class="recipe-img-container h-40 md:h-40 w-full bg-[#0A0A0A]">
+                            <img src="${imageUrl}" 
+                                 alt="${recipe.title}" 
+                                 class="w-full h-full object-cover opacity-80 hover:opacity-100 transition duration-500"
+                                 onerror="this.parentElement.innerHTML='<div class=\'w-full h-full flex items-center justify-center text-[#333]\'><i class=\'fas fa-utensils text-3xl\'></i></div>'">
                         </div>
-                        <button id="tts-btn-${index}" onclick="playRecipeTTS(${index})" class="md:mt-4 w-8 h-8 md:w-auto md:h-auto md:px-4 md:py-2 flex items-center justify-center gap-2 bg-[#1A1A1A] hover:bg-[#333] text-[#E5E5E5] border border-[#333] transition text-xs uppercase tracking-wide">
-                            <i class="fas fa-volume-up text-[#D4AF37]"></i> <span class="hidden md:inline">Audio</span>
-                        </button>
+                        
+                        <!-- Meta Info -->
+                        <div class="p-4 flex flex-row md:flex-col items-center justify-between md:justify-center flex-1 gap-2">
+                            <div class="flex items-center gap-3 md:flex-col md:gap-1 text-center">
+                                <span class="text-xs font-bold uppercase tracking-widest text-[#D4AF37] border border-[#D4AF37] px-2 py-1">${recipe.day}</span>
+                                <span class="text-[10px] text-gray-500 uppercase tracking-wide md:mt-2">${recipe.prep_time}</span>
+                            </div>
+                            
+                            <button id="tts-btn-${index}" onclick="playRecipeTTS(${index})" class="w-8 h-8 md:w-auto md:h-auto md:px-4 md:py-2 flex items-center justify-center gap-2 bg-[#1A1A1A] hover:bg-[#333] text-[#E5E5E5] border border-[#333] transition text-xs uppercase tracking-wide">
+                                <i class="fas fa-volume-up text-[#D4AF37]"></i> <span class="hidden md:inline">Audio</span>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Content -->
