@@ -214,6 +214,8 @@
         // State
         let currentRecipes = [];
         let isGeneratingAudio = false;
+        let currentAudio = null;
+        let currentPlayingIndex = -1;
 
         // DOM Elements
         const chatContainer = document.getElementById('chat-container');
@@ -358,14 +360,43 @@
         }
 
         async function playRecipeTTS(recipeIndex) {
+            // Prevent reentry if fetching
             if(isGeneratingAudio) return;
+
+            // Stop logic: If clicking the active button
+            if (currentPlayingIndex === recipeIndex && currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+                currentPlayingIndex = -1;
+                
+                // Reset this button to Play state
+                const btn = document.getElementById(`tts-btn-${recipeIndex}`);
+                if(btn) {
+                    btn.innerHTML = `<i class="fas fa-volume-up text-[#D4AF37]"></i> <span class="hidden md:inline">Audio</span>`;
+                    btn.classList.remove('border-[#D4AF37]');
+                }
+                return;
+            }
+
+            // If another audio is playing, stop it first
+            if (currentAudio) {
+                currentAudio.pause();
+                const prevBtn = document.getElementById(`tts-btn-${currentPlayingIndex}`);
+                if(prevBtn) {
+                    prevBtn.innerHTML = `<i class="fas fa-volume-up text-[#D4AF37]"></i> <span class="hidden md:inline">Audio</span>`;
+                    prevBtn.classList.remove('border-[#D4AF37]');
+                }
+            }
+
+            // Start new audio flow
             const recipe = currentRecipes[recipeIndex];
             const btn = document.getElementById(`tts-btn-${recipeIndex}`);
-            const originalContent = btn.innerHTML;
+            const originalContent = `<i class="fas fa-volume-up text-[#D4AF37]"></i> <span class="hidden md:inline">Audio</span>`;
             
             btn.innerHTML = `<i class="fas fa-circle-notch fa-spin text-[#D4AF37]"></i>`;
             btn.classList.add('border-[#D4AF37]');
             isGeneratingAudio = true;
+            currentPlayingIndex = recipeIndex;
             
             const textToRead = `Selección para el ${recipe.day}. ${recipe.title}. Ingredientes: ${recipe.ingredients.slice(0,3).join(', ')}. Pasos: ${recipe.steps.join('. ')}`;
 
@@ -377,7 +408,7 @@
                         contents: [{ parts: [{ text: textToRead }] }],
                         generationConfig: {
                             responseModalities: ["AUDIO"],
-                            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } } }
+                            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } } }
                         }
                     })
                 });
@@ -389,20 +420,30 @@
                 const pcmData = base64ToArrayBuffer(audioContent);
                 const wavBuffer = pcmToWav(pcmData, 24000);
                 const blob = new Blob([wavBuffer], { type: 'audio/wav' });
-                const audio = new Audio(URL.createObjectURL(blob));
                 
-                audio.onended = () => { 
+                currentAudio = new Audio(URL.createObjectURL(blob));
+                
+                currentAudio.onended = () => { 
                     btn.innerHTML = originalContent; 
                     btn.classList.remove('border-[#D4AF37]');
                     isGeneratingAudio = false; 
+                    currentAudio = null;
+                    currentPlayingIndex = -1;
                 };
                 
-                btn.innerHTML = `<i class="fas fa-stop text-[#D4AF37]"></i>`;
-                audio.play();
+                // Show Stop Icon
+                btn.innerHTML = `<i class="fas fa-stop text-red-500"></i> <span class="hidden md:inline">Detener</span>`;
+                isGeneratingAudio = false; // Finished generating, ready to play
+                currentAudio.play();
+
             } catch (e) {
                 btn.innerHTML = `<i class="fas fa-exclamation-triangle text-red-500"></i>`;
-                setTimeout(() => { btn.innerHTML = originalContent; }, 2000);
+                setTimeout(() => { 
+                    btn.innerHTML = originalContent; 
+                    btn.classList.remove('border-[#D4AF37]');
+                }, 2000);
                 isGeneratingAudio = false;
+                currentPlayingIndex = -1;
             }
         }
 
